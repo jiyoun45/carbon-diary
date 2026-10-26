@@ -16,6 +16,12 @@ HTML = """
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Carbon Diary</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#194d37">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Carbon Diary">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 * { box-sizing: border-box; }
