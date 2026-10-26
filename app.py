@@ -489,6 +489,120 @@ form.addEventListener("submit", async event => {
 
 document.getElementById("entryDate").addEventListener("change", renderEntries);
 initialize();
+
+async function loadGlobalCo2() {
+    const status = document.getElementById("globalCo2Status");
+    const yearSelect = document.getElementById("globalYear");
+    const names = ["중국", "일본", "한국", "미국"];
+    const colors = ["#4f7cac", "#7aa874", "#d9825b", "#8b78b8"];
+
+    let totalChart;
+    let perCapitaChart;
+    let trendChart;
+
+    async function getData(url) {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "데이터를 불러오지 못했습니다.");
+        }
+        return data.records;
+    }
+
+    async function render() {
+        status.textContent = "데이터를 불러오는 중...";
+        try {
+            const year = yearSelect.value;
+            const selected = await getData("/api/global-data?year=" + year);
+            const all = await getData("/api/global-data");
+
+            const countryOrder = ["China", "Japan", "South Korea", "United States"];
+            const current = countryOrder.map(country =>
+                selected.find(row => row.country === country)
+            ).filter(Boolean);
+
+            if (!current.length) {
+                throw new Error("선택한 연도의 데이터가 없습니다.");
+            }
+
+            const labels = current.map(row => row.country_ko);
+
+            if (totalChart) totalChart.destroy();
+            if (perCapitaChart) perCapitaChart.destroy();
+            if (trendChart) trendChart.destroy();
+
+            totalChart = new Chart(document.getElementById("globalTotalChart"), {
+                type: "bar",
+                data: {
+                    labels,
+                    datasets: [{
+                        label: "총 CO₂ 배출량 (백만 톤)",
+                        data: current.map(row => row.co2_million_tonnes),
+                        backgroundColor: current.map(row => colors[countryOrder.indexOf(row.country)])
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            perCapitaChart = new Chart(document.getElementById("globalPerCapitaChart"), {
+                type: "bar",
+                data: {
+                    labels,
+                    datasets: [{
+                        label: "1인당 CO₂ 배출량 (톤/명)",
+                        data: current.map(row => row.co2_per_capita_tonnes),
+                        backgroundColor: current.map(row => colors[countryOrder.indexOf(row.country)])
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const trendCountries = ["South Korea", "United States", "China", "Japan"];
+            const trendLabels = [...new Set(all.map(row => row.year))].sort((a, b) => a - b);
+            const datasets = trendCountries.map((country, i) => {
+                const rows = all.filter(row => row.country === country);
+                const byYear = new Map(rows.map(row => [row.year, row.co2_million_tonnes]));
+                return {
+                    label: rows[0]?.country_ko || country,
+                    data: trendLabels.map(y => byYear.has(y) ? byYear.get(y) : null),
+                    borderColor: colors[[2, 3, 0, 1][i]],
+                    backgroundColor: colors[[2, 3, 0, 1][i]],
+                    spanGaps: false,
+                    tension: 0.2
+                };
+            });
+
+            trendChart = new Chart(document.getElementById("globalTrendChart"), {
+                type: "line",
+                data: { labels: trendLabels, datasets },
+                options: {
+                    responsive: true,
+                    interaction: { mode: "index", intersect: false },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            status.textContent = year + "년 데이터 · " + current.length +
+                "개 국가 · 단위: 백만 톤 CO₂ / 톤 CO₂/명";
+        } catch (error) {
+            status.textContent = "데이터를 불러오지 못했어요: " + error.message;
+        }
+    }
+
+    yearSelect.addEventListener("change", render);
+    await render();
+}
+
+document.addEventListener("DOMContentLoaded", loadGlobalCo2);
+
 document.getElementById("coachButton").addEventListener("click", async () => {
     const button = document.getElementById("coachButton");
     const result = document.getElementById("coachResult");
@@ -526,6 +640,34 @@ document.getElementById("coachButton").addEventListener("click", async () => {
 });
 
 </script>
+
+<section id="globalCo2Section" style="max-width:1100px;margin:40px auto;padding:24px;background:white;border-radius:18px;">
+  <h2>🌏 국가별 탄소 배출량 비교</h2>
+  <p>Our World in Data 공개 자료 · 1990~2024년</p>
+  <label for="globalYear">비교 연도</label>
+  <select id="globalYear">
+    <option value="2024" selected>2024년</option>
+    <option value="2023">2023년</option>
+    <option value="2022">2022년</option>
+    <option value="2021">2021년</option>
+    <option value="2020">2020년</option>
+    <option value="2015">2015년</option>
+    <option value="2010">2010년</option>
+    <option value="2000">2000년</option>
+    <option value="1990">1990년</option>
+  </select>
+  <p id="globalCo2Status" role="status">데이터를 불러오는 중...</p>
+  <h3>총 CO₂ 배출량 (백만 톤)</h3>
+  <canvas id="globalTotalChart"></canvas>
+  <h3 style="margin-top:28px;">1인당 CO₂ 배출량 (톤/명)</h3>
+  <canvas id="globalPerCapitaChart"></canvas>
+  <h3 style="margin-top:28px;">연도별 배출량 추이 (백만 톤)</h3>
+  <canvas id="globalTrendChart"></canvas>
+  <p style="font-size:12px;color:#65746a;margin-top:18px;">
+    출처: Our World in Data, CO₂ emissions. 총배출량과 1인당 배출량은 서로 다른 지표입니다.
+  </p>
+</section>
+
 </body>
 </html>
 """
@@ -622,3 +764,59 @@ def ai_coach():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+
+@app.route("/api/global-data")
+def global_data():
+    import pandas as pd
+
+    data_path = os.path.join(os.path.dirname(__file__), "global_co2_data.csv")
+
+    if not os.path.exists(data_path):
+        return jsonify({"error": "탄소 배출량 데이터 파일을 찾을 수 없습니다."}), 500
+
+    countries = {
+        "South Korea": "한국",
+        "United States": "미국",
+        "China": "중국",
+        "Japan": "일본",
+    }
+
+    try:
+        df = pd.read_csv(data_path)
+        selected = request.args.get("country", "")
+        year = request.args.get("year", type=int)
+
+        if selected and selected not in countries:
+            return jsonify({"error": "지원하지 않는 국가입니다."}), 400
+
+        if year is not None and not 1990 <= year <= 2024:
+            return jsonify({"error": "연도는 1990~2024년 사이여야 합니다."}), 400
+
+        if selected:
+            df = df[df["country"] == selected]
+
+        if year is not None:
+            df = df[df["year"] == year]
+
+        df = df.sort_values(["year", "country"])
+
+        records = []
+        for _, row in df.iterrows():
+            records.append({
+                "country": row["country"],
+                "country_ko": countries[row["country"]],
+                "year": int(row["year"]),
+                "co2_million_tonnes": round(float(row["co2"]), 3),
+                "co2_per_capita_tonnes": round(float(row["co2_per_capita"]), 3),
+            })
+
+        return jsonify({
+            "source": "Our World in Data — CO₂ emissions",
+            "unit_total": "백만 톤 CO₂",
+            "unit_per_capita": "톤 CO₂/명",
+            "records": records,
+        })
+
+    except (OSError, ValueError, KeyError) as error:
+        return jsonify({"error": f"데이터 처리 중 오류가 발생했습니다: {error}"}), 500
