@@ -184,6 +184,55 @@ footer { text-align: center; padding: 24px; color: #718075; }
         </div>
     </section>
 
+<section class="card">
+    <h2>🎯 이번 달 탄소 감축 목표</h2>
+    <p>이번 달에 달성하고 싶은 탄소 감축량을 설정해 보세요.</p>
+
+    <label for="monthlyGoal">월간 목표 (kg CO₂e)</label>
+    <input id="monthlyGoal" type="number" min="0.1" step="0.1" value="10" style="margin-bottom: 12px;">
+
+    <button type="button" id="saveGoalButton">목표 저장하기</button>
+
+    <div style="margin-top: 18px;">
+        <p>이번 달 감축량: <strong id="goalCurrent">0 kg</strong></p>
+        <p>목표 달성률: <strong id="goalRate">0%</strong></p>
+        <div style="background:#e7eee6; height:14px; border-radius:10px; overflow:hidden;">
+            <div id="goalProgress" style="width:0%; height:100%; background:#399563; transition:width .3s;"></div>
+        </div>
+        <p id="goalMessage" class="small">목표를 설정하고 친환경 실천을 기록해 보세요!</p>
+    </div>
+</section>
+
+<section class="card">
+    <h2>🏆 미션 & 보상</h2>
+    <p>친환경 실천을 기록하고 배지를 모아 보세요!</p>
+
+    <div class="stats">
+        <div class="stat-card">
+            <p>나의 레벨</p>
+            <strong id="rewardLevel">🌱 새싹 Lv.1</strong>
+        </div>
+        <div class="stat-card">
+            <p>실천 횟수</p>
+            <strong id="rewardCount">0회</strong>
+        </div>
+        <div class="stat-card">
+            <p>누적 감축량</p>
+            <strong id="rewardReduction">0 kg</strong>
+        </div>
+    </div>
+
+    <h3>🎯 도전 미션</h3>
+    <div id="missionList">
+        미션 정보를 불러오는 중이에요.
+    </div>
+
+    <h3>🎖️ 획득한 배지</h3>
+    <div id="badgeList">
+        아직 획득한 배지가 없어요.
+    </div>
+</section>
+
     <section class="card">
         <h2>✍️ 친환경 행동 기록하기</h2>
         <form id="entryForm">
@@ -222,6 +271,35 @@ footer { text-align: center; padding: 24px; color: #718075; }
 </section>
 
 <section class="card">
+    <h2>🔎 나의 탄소 절약 분석</h2>
+    <p>지금까지 기록한 친환경 실천을 분석해 드려요.</p>
+
+    <div class="stats">
+        <div class="stat-card">
+            <p>가장 효과적인 실천</p>
+            <strong id="analysisBestAction">기록을 기다리는 중</strong>
+        </div>
+        <div class="stat-card">
+            <p>가장 많이 감축한 유형</p>
+            <strong id="analysisBestReduction">0 kg</strong>
+        </div>
+        <div class="stat-card">
+            <p>전체 기록 중 감축량</p>
+            <strong id="analysisTotal">0 kg</strong>
+        </div>
+    </div>
+
+    <h3>실천 유형별 감축량</h3>
+    <div id="analysisBreakdown">
+        아직 기록이 없어요. 친환경 실천을 기록해 보세요!
+    </div>
+
+    <p id="analysisFeedback" class="small">
+        실천 기록이 쌓이면 나만의 분석 결과가 표시돼요.
+    </p>
+</section>
+
+<section class="card">
     <h2>🤖 AI 탄소 절약 코치</h2>
     <p>내 탄소 다이어리 기록을 분석하고 맞춤형 조언을 받아보세요.</p>
 
@@ -236,7 +314,6 @@ footer { text-align: center; padding: 24px; color: #718075; }
 
 </main>
 
-<footer>Carbon Diary · 지속 가능한 일상을 위한 작은 실천</footer>
 
 <script>
 const STORAGE_KEY = "carbonDiaryEntries";
@@ -258,6 +335,59 @@ function loadEntries() {
 function saveEntries(entries) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
 }
+
+const GOAL_STORAGE_KEY = "carbonDiaryMonthlyGoal";
+
+function loadMonthlyGoal() {
+    const savedGoal = Number(localStorage.getItem(GOAL_STORAGE_KEY));
+    return Number.isFinite(savedGoal) && savedGoal > 0 ? savedGoal : 10;
+}
+
+function updateGoalProgress() {
+    const goalInput = document.getElementById("monthlyGoal");
+    const goal = loadMonthlyGoal();
+
+    goalInput.value = goal;
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    const monthlyTotal = loadEntries()
+        .filter(entry => {
+            const d = new Date(entry.date + "T00:00:00");
+            return d.getFullYear() === year && d.getMonth() === month;
+        })
+        .reduce((sum, entry) => sum + Number(entry.reduction || 0), 0);
+
+    const rate = monthlyTotal / goal * 100;
+    const progress = Math.min(rate, 100);
+
+    document.getElementById("goalCurrent").textContent =
+        monthlyTotal.toFixed(3) + " kg";
+    document.getElementById("goalRate").textContent =
+        rate.toFixed(1) + "%";
+    document.getElementById("goalProgress").style.width =
+        progress + "%";
+
+    document.getElementById("goalMessage").textContent =
+        rate >= 100
+            ? "🎉 이번 달 목표를 달성했어요!"
+            : `목표까지 ${(goal - monthlyTotal).toFixed(3)} kg 남았어요.`;
+}
+
+document.getElementById("saveGoalButton").addEventListener("click", () => {
+    const goal = Number(document.getElementById("monthlyGoal").value);
+
+    if (!Number.isFinite(goal) || goal <= 0) {
+        alert("목표는 0보다 큰 숫자로 입력해 주세요.");
+        return;
+    }
+
+    localStorage.setItem(GOAL_STORAGE_KEY, String(goal));
+    updateGoalProgress();
+    alert("이번 달 목표를 저장했어요!");
+});
 
 async function initialize() {
     try {
@@ -339,9 +469,127 @@ function renderCharts(entries) {
         }
     );
 }
+
+function updatePersonalAnalysis(entries) {
+    const bestActionEl = document.getElementById("analysisBestAction");
+    const bestReductionEl = document.getElementById("analysisBestReduction");
+    const totalEl = document.getElementById("analysisTotal");
+    const breakdownEl = document.getElementById("analysisBreakdown");
+    const feedbackEl = document.getElementById("analysisFeedback");
+
+    if (!bestActionEl || !bestReductionEl || !totalEl || !breakdownEl || !feedbackEl) {
+        return;
+    }
+
+    const totals = {};
+    let totalReduction = 0;
+
+    entries.forEach(entry => {
+        const reduction = Number(entry.reduction) || 0;
+        const actionName = entry.name || entry.action || "기타 실천";
+
+        totals[actionName] = (totals[actionName] || 0) + reduction;
+        totalReduction += reduction;
+    });
+
+    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+
+    bestActionEl.textContent = sorted.length ? sorted[0][0] : "기록 없음";
+    bestReductionEl.textContent = sorted.length ? sorted[0][1].toFixed(3) + " kg" : "0 kg";
+    totalEl.textContent = totalReduction.toFixed(3) + " kg";
+
+    if (sorted.length === 0) {
+        breakdownEl.textContent = "아직 기록이 없어요. 친환경 실천을 기록해 보세요!";
+        feedbackEl.textContent = "기록이 쌓이면 나에게 효과적인 실천을 분석해 드릴게요.";
+        return;
+    }
+
+    breakdownEl.innerHTML = sorted.map(([name, amount]) =>
+        `<p>${name}: <strong>${amount.toFixed(3)} kg</strong></p>`
+    ).join("");
+
+    feedbackEl.textContent =
+        `지금까지 ${sorted.length}가지 실천 유형을 기록했어요. 가장 효과적인 실천은 "${sorted[0][0]}"이에요!`;
+}
+
+function updateRewards(entries) {
+    const count = entries.length;
+    const total = entries.reduce(
+        (sum, entry) => sum + (Number(entry.reduction) || 0),
+        0
+    );
+
+    const level = Math.floor(count / 5) + 1;
+    const levelNames = [
+        "🌱 새싹",
+        "🌿 초록이",
+        "🌳 나무 지킴이",
+        "🌎 지구 수호자",
+        "♻️ 탄소 절약 마스터"
+    ];
+    const levelIndex = Math.min(level - 1, levelNames.length - 1);
+
+    document.getElementById("rewardLevel").textContent =
+        `${levelNames[levelIndex]} Lv.${level}`;
+    document.getElementById("rewardCount").textContent = `${count}회`;
+    document.getElementById("rewardReduction").textContent =
+        `${total.toFixed(3)} kg`;
+
+    const missions = [
+        {
+            name: "첫 실천 기록하기",
+            description: "친환경 실천을 1회 기록하기",
+            done: count >= 1
+        },
+        {
+            name: "꾸준한 실천가",
+            description: "친환경 실천을 5회 기록하기",
+            done: count >= 5
+        },
+        {
+            name: "실천 달인",
+            description: "친환경 실천을 10회 기록하기",
+            done: count >= 10
+        },
+        {
+            name: "탄소 절약 시작",
+            description: "누적 감축량 1kg 달성하기",
+            done: total >= 1
+        },
+        {
+            name: "지구 지킴이",
+            description: "누적 감축량 10kg 달성하기",
+            done: total >= 10
+        }
+    ];
+
+    document.getElementById("missionList").innerHTML = missions.map(mission => `
+        <p>${mission.done ? "✅" : "⬜"} ${mission.name}
+        — ${mission.description}
+        ${mission.done ? "<strong>달성!</strong>" : ""}</p>
+    `).join("");
+
+    const badges = [
+        { name: "🌱 첫걸음", done: count >= 1 },
+        { name: "🌿 꾸준한 실천", done: count >= 5 },
+        { name: "🏆 실천 달인", done: count >= 10 },
+        { name: "♻️ 탄소 절약가", done: total >= 1 },
+        { name: "🌎 지구 수호자", done: total >= 10 }
+    ];
+
+    const earned = badges.filter(badge => badge.done);
+
+    document.getElementById("badgeList").innerHTML = earned.length
+        ? earned.map(badge => `<span style="display:inline-block; background:#e7eee6; padding:8px 12px; border-radius:12px; margin:4px;">${badge.name}</span>`).join("")
+        : "아직 획득한 배지가 없어요. 첫 실천을 기록해 보세요!";
+}
+
 function renderEntries() {
     const entries = loadEntries();
 renderCharts(entries);    
+updateGoalProgress();
+updatePersonalAnalysis(entries);
+    updateRewards(entries);
 const today = document.getElementById("entryDate").value ||
                   new Date().toLocaleDateString("sv-SE");
 
@@ -499,12 +747,14 @@ initialize();
 async function loadGlobalCo2() {
     const status = document.getElementById("globalCo2Status");
     const yearSelect = document.getElementById("globalYear");
-    const names = ["중국", "일본", "한국", "미국"];
-    const colors = ["#4f7cac", "#7aa874", "#d9825b", "#8b78b8"];
+    const countrySelect = document.getElementById("globalCountry");
+    const trendSelect = document.getElementById("globalTrendCountry");
+    const worldSummary = document.getElementById("globalWorldSummary");
 
     let totalChart;
     let perCapitaChart;
     let trendChart;
+    let worldChart;
 
     async function getData(url) {
         const response = await fetch(url);
@@ -515,27 +765,34 @@ async function loadGlobalCo2() {
         return data.records;
     }
 
+    function countryName(country) {
+        const option = [...countrySelect.options].find(o => o.value === country);
+        return option ? option.textContent : country;
+    }
+
     async function render() {
         status.textContent = "데이터를 불러오는 중...";
         try {
-            const year = yearSelect.value;
-            const selected = await getData("/api/global-data?year=" + year);
+            const year = Number(yearSelect.value);
+            const selectedCountries = [...countrySelect.selectedOptions].map(o => o.value);
+            const yearData = await getData("/api/global-data?year=" + year);
             const all = await getData("/api/global-data");
 
-            const countryOrder = ["China", "Japan", "South Korea", "United States"];
-            const current = countryOrder.map(country =>
-                selected.find(row => row.country === country)
+            const current = selectedCountries.map(country =>
+                yearData.find(row => row.country === country)
             ).filter(Boolean);
 
             if (!current.length) {
-                throw new Error("선택한 연도의 데이터가 없습니다.");
+                throw new Error("선택한 국가의 해당 연도 데이터가 없습니다.");
             }
 
             const labels = current.map(row => row.country_ko);
+            const colors = ["#d9825b", "#4f7cac", "#7aa874", "#8b78b8", "#d6a84f", "#559e9b", "#bb779b", "#8b8b8b"];
 
             if (totalChart) totalChart.destroy();
             if (perCapitaChart) perCapitaChart.destroy();
             if (trendChart) trendChart.destroy();
+            if (worldChart) worldChart.destroy();
 
             totalChart = new Chart(document.getElementById("globalTotalChart"), {
                 type: "bar",
@@ -544,7 +801,7 @@ async function loadGlobalCo2() {
                     datasets: [{
                         label: "총 CO₂ 배출량 (백만 톤)",
                         data: current.map(row => row.co2_million_tonnes),
-                        backgroundColor: current.map(row => colors[countryOrder.indexOf(row.country)])
+                        backgroundColor: current.map((_, i) => colors[i % colors.length])
                     }]
                 },
                 options: {
@@ -561,7 +818,7 @@ async function loadGlobalCo2() {
                     datasets: [{
                         label: "1인당 CO₂ 배출량 (톤/명)",
                         data: current.map(row => row.co2_per_capita_tonnes),
-                        backgroundColor: current.map(row => colors[countryOrder.indexOf(row.country)])
+                        backgroundColor: current.map((_, i) => colors[i % colors.length])
                     }]
                 },
                 options: {
@@ -571,24 +828,26 @@ async function loadGlobalCo2() {
                 }
             });
 
-            const trendCountries = ["South Korea", "United States", "China", "Japan"];
-            const trendLabels = [...new Set(all.map(row => row.year))].sort((a, b) => a - b);
-            const datasets = trendCountries.map((country, i) => {
-                const rows = all.filter(row => row.country === country);
-                const byYear = new Map(rows.map(row => [row.year, row.co2_million_tonnes]));
-                return {
-                    label: rows[0]?.country_ko || country,
-                    data: trendLabels.map(y => byYear.has(y) ? byYear.get(y) : null),
-                    borderColor: colors[[2, 3, 0, 1][i]],
-                    backgroundColor: colors[[2, 3, 0, 1][i]],
-                    spanGaps: false,
-                    tension: 0.2
-                };
-            });
+            const trendCountry = trendSelect.value;
+            const trendRows = all.filter(row => row.country === trendCountry);
+            const trendLabels = [...new Set(trendRows.map(row => row.year))].sort((a, b) => a - b);
 
             trendChart = new Chart(document.getElementById("globalTrendChart"), {
                 type: "line",
-                data: { labels: trendLabels, datasets },
+                data: {
+                    labels: trendLabels,
+                    datasets: [{
+                        label: countryName(trendCountry) + " CO₂ 배출량",
+                        data: trendLabels.map(y => {
+                            const row = trendRows.find(r => r.year === y);
+                            return row ? row.co2_million_tonnes : null;
+                        }),
+                        borderColor: "#d9825b",
+                        backgroundColor: "#d9825b",
+                        tension: 0.2,
+                        spanGaps: false
+                    }]
+                },
                 options: {
                     responsive: true,
                     interaction: { mode: "index", intersect: false },
@@ -596,14 +855,45 @@ async function loadGlobalCo2() {
                 }
             });
 
-            status.textContent = year + "년 데이터 · " + current.length +
-                "개 국가 · 단위: 백만 톤 CO₂ / 톤 CO₂/명";
+            const worldRows = all.filter(row => row.country === "World");
+            const worldLabels = worldRows.map(row => row.year);
+            worldChart = new Chart(document.getElementById("globalWorldChart"), {
+                type: "line",
+                data: {
+                    labels: worldLabels,
+                    datasets: [{
+                        label: "세계 CO₂ 배출량 (백만 톤)",
+                        data: worldRows.map(row => row.co2_million_tonnes),
+                        borderColor: "#4f7cac",
+                        backgroundColor: "rgba(79,124,172,0.15)",
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: { mode: "index", intersect: false },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const worldCurrent = worldRows.find(row => row.year === year);
+            if (worldCurrent) {
+                worldSummary.textContent = year + "년 세계 CO₂ 배출량은 약 " +
+                    Math.round(worldCurrent.co2_million_tonnes).toLocaleString("ko-KR") +
+                    "백만 톤입니다.";
+            }
+
+            status.textContent = year + "년 데이터 · 선택 국가 " +
+                current.length + "개 · 단위: 백만 톤 CO₂ / 톤 CO₂/명";
         } catch (error) {
             status.textContent = "데이터를 불러오지 못했어요: " + error.message;
         }
     }
 
     yearSelect.addEventListener("change", render);
+    countrySelect.addEventListener("change", render);
+    trendSelect.addEventListener("change", render);
     await render();
 }
 
@@ -648,8 +938,10 @@ document.getElementById("coachButton").addEventListener("click", async () => {
 </script>
 
 <section id="globalCo2Section" style="max-width:1100px;margin:40px auto;padding:24px;background:white;border-radius:18px;">
-  <h2>🌏 국가별 탄소 배출량 비교</h2>
-  <p>Our World in Data 공개 자료 · 1990~2024년</p>
+  <h2>🌏 국가별·세계 탄소 배출량 비교</h2>
+  <p>한국의 탄소 배출량은 시간이 지나면서 어떻게 달라졌을까요? 국가와 연도를 선택해 직접 비교해 보세요.</p>
+  <p style="font-size:13px;color:#65746a;">Our World in Data 공개 자료 · 1990~2024년</p>
+
   <label for="globalYear">비교 연도</label>
   <select id="globalYear">
     <option value="2024" selected>2024년</option>
@@ -662,18 +954,75 @@ document.getElementById("coachButton").addEventListener("click", async () => {
     <option value="2000">2000년</option>
     <option value="1990">1990년</option>
   </select>
+
+  <div style="margin-top:16px;">
+    <label for="globalCountry">비교할 국가 (여러 개 선택 가능)</label><br>
+    <select id="globalCountry" multiple size="7" style="width:100%;max-width:420px;padding:8px;">
+      <option value="South Korea" selected>한국</option>
+      <option value="United States" selected>미국</option>
+      <option value="China" selected>중국</option>
+      <option value="Japan" selected>일본</option>
+      <option value="World">세계</option>
+      <option value="India">인도</option>
+      <option value="United Kingdom">영국</option>
+      <option value="Germany">독일</option>
+      <option value="France">프랑스</option>
+      <option value="Canada">캐나다</option>
+      <option value="Australia">호주</option>
+      <option value="Brazil">브라질</option>
+      <option value="Russia">러시아</option>
+      <option value="Indonesia">인도네시아</option>
+      <option value="Italy">이탈리아</option>
+      <option value="Spain">스페인</option>
+      <option value="Mexico">멕시코</option>
+      <option value="South Africa">남아프리카공화국</option>
+      <option value="Saudi Arabia">사우디아라비아</option>
+      <option value="Türkiye">튀르키예</option>
+    </select>
+    <p style="font-size:12px;color:#65746a;">컴퓨터에서는 Ctrl 또는 Command 키를 누른 채 여러 국가를 선택할 수 있어요.</p>
+  </div>
+
   <p id="globalCo2Status" role="status">데이터를 불러오는 중...</p>
-  <h3>총 CO₂ 배출량 (백만 톤)</h3>
+  <h3>선택 국가의 총 CO₂ 배출량 (백만 톤)</h3>
   <canvas id="globalTotalChart"></canvas>
-  <h3 style="margin-top:28px;">1인당 CO₂ 배출량 (톤/명)</h3>
+  <h3 style="margin-top:28px;">선택 국가의 1인당 CO₂ 배출량 (톤/명)</h3>
   <canvas id="globalPerCapitaChart"></canvas>
-  <h3 style="margin-top:28px;">연도별 배출량 추이 (백만 톤)</h3>
+
+  <div style="margin-top:28px;">
+    <label for="globalTrendCountry">연도별 변화 확인 국가</label>
+    <select id="globalTrendCountry">
+      <option value="South Korea" selected>한국</option>
+      <option value="United States">미국</option>
+      <option value="China">중국</option>
+      <option value="Japan">일본</option>
+      <option value="World">세계</option>
+      <option value="India">인도</option>
+      <option value="United Kingdom">영국</option>
+      <option value="Germany">독일</option>
+      <option value="France">프랑스</option>
+      <option value="Canada">캐나다</option>
+      <option value="Australia">호주</option>
+      <option value="Brazil">브라질</option>
+      <option value="Russia">러시아</option>
+      <option value="Indonesia">인도네시아</option>
+      <option value="Italy">이탈리아</option>
+      <option value="Spain">스페인</option>
+      <option value="Mexico">멕시코</option>
+    </select>
+  </div>
+  <h3 style="margin-top:18px;">국가별 연도별 배출량 변화 (백만 톤)</h3>
   <canvas id="globalTrendChart"></canvas>
+
+  <h3 style="margin-top:28px;">🌍 세계 전체 CO₂ 배출 추세</h3>
+  <p id="globalWorldSummary">세계 데이터를 불러오는 중...</p>
+  <canvas id="globalWorldChart"></canvas>
+
   <p style="font-size:12px;color:#65746a;margin-top:18px;">
     출처: Our World in Data, CO₂ emissions. 총배출량과 1인당 배출량은 서로 다른 지표입니다.
   </p>
 </section>
 
+<footer>Carbon Diary · 지속 가능한 일상을 위한 작은 실천</footer>
 </body>
 </html>
 """
@@ -768,53 +1117,78 @@ def ai_coach():
             "error": "AI 조언을 불러오지 못했어요. API 키와 모델 설정을 확인해 주세요."
         }), 502
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+
 
 
 @app.route("/api/global-data")
 def global_data():
     import pandas as pd
 
-    data_path = os.path.join(os.path.dirname(__file__), "global_co2_data.csv")
+    data_path = os.path.join(
+        os.path.dirname(__file__), "global_co2_extended.csv"
+    )
 
     if not os.path.exists(data_path):
         return jsonify({"error": "탄소 배출량 데이터 파일을 찾을 수 없습니다."}), 500
 
-    countries = {
+    country_names = {
+        "World": "세계",
         "South Korea": "한국",
         "United States": "미국",
         "China": "중국",
         "Japan": "일본",
+        "United Kingdom": "영국",
+        "Germany": "독일",
+        "France": "프랑스",
+        "India": "인도",
+        "Canada": "캐나다",
+        "Australia": "호주",
+        "Brazil": "브라질",
+        "Russia": "러시아",
+        "Indonesia": "인도네시아",
+        "Italy": "이탈리아",
+        "Spain": "스페인",
+        "Mexico": "멕시코",
+        "South Africa": "남아프리카공화국",
+        "Saudi Arabia": "사우디아라비아",
+        "Türkiye": "튀르키예",
     }
 
     try:
         df = pd.read_csv(data_path)
-        selected = request.args.get("country", "")
+        selected = request.args.get("country", "").strip()
         year = request.args.get("year", type=int)
 
-        if selected and selected not in countries:
-            return jsonify({"error": "지원하지 않는 국가입니다."}), 400
+        available_countries = set(df["country_en"].dropna().unique())
+
+        if selected and selected not in available_countries:
+            return jsonify({"error": "데이터에 없는 국가입니다."}), 400
 
         if year is not None and not 1990 <= year <= 2024:
             return jsonify({"error": "연도는 1990~2024년 사이여야 합니다."}), 400
 
         if selected:
-            df = df[df["country"] == selected]
+            df = df[df["country_en"] == selected]
 
         if year is not None:
             df = df[df["year"] == year]
 
-        df = df.sort_values(["year", "country"])
+        df = df.sort_values(["year", "country_en"])
 
         records = []
         for _, row in df.iterrows():
+            country = row["country_en"]
+            per_capita = row["co2_per_capita_tonnes"]
+
             records.append({
-                "country": row["country"],
-                "country_ko": countries[row["country"]],
+                "country": country,
+                "country_ko": country_names.get(country, country),
                 "year": int(row["year"]),
-                "co2_million_tonnes": round(float(row["co2"]), 3),
-                "co2_per_capita_tonnes": round(float(row["co2_per_capita"]), 3),
+                "co2_million_tonnes": round(float(row["co2_million_tonnes"]), 3),
+                "co2_per_capita_tonnes": (
+                    round(float(per_capita), 3)
+                    if pd.notna(per_capita) else None
+                ),
             })
 
         return jsonify({
@@ -826,3 +1200,7 @@ def global_data():
 
     except (OSError, ValueError, KeyError) as error:
         return jsonify({"error": f"데이터 처리 중 오류가 발생했습니다: {error}"}), 500
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5001)
